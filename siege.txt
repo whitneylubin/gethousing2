@@ -1,0 +1,7 @@
+siege -i -c5 -fsiegeUrls-geo.txt
+siege -i -c25 -fsiegeUrls-geo.txt
+siege -i -c125 -fsiegeUrls-geo.txt
+
+siege -i -c5 -fsiegeUrls-nrhp.txt
+siege -i -c25 -fsiegeUrls-nrhp.txt
+siege -i -c125 -fsiegeUrls-nrhp.txt
