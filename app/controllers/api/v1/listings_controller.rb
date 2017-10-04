@@ -6,12 +6,22 @@ class Api::V1::ListingsController < ApiController
     # params[:ids] could be nil which means get all open listings
     # params[:ids] is a comma-separated list of ids
     @listings = ListingService.listings(params[:ids])
-    render json: { listings: @listings }
+    if ENV['CACHE_FOR_DEMO']
+      render json: File.read("#{Rails.root}/public/cached-listings.json")
+    else
+      render json: { listings: @listings }
+    end
   end
 
   def show
     @listing = ListingService.listing(params[:id])
+    if ENV['CACHE_FOR_DEMO']
+      listings = JSON.parse(File.read("#{Rails.root}/public/cached-listings.json"))
+      cached = listings['listings'].find { |l| l['Id'] == params[:id] }
+      @listing.merge!(cached)
+    end
     render json: { listing: @listing }
+
   rescue Faraday::ClientError => e
     # Salesforce will throw an error if you request a listing ID that doesn't exist
     if e.message.include? 'APEX_ERROR'
