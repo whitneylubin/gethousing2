@@ -1,5 +1,5 @@
 ShortFormApplicationService = (
-  $translate, $http, $state, uuid,
+  $translate, $http, $state, $window, uuid,
   ListingService, ShortFormDataService, AddressValidationService, GeocodingService,
   AnalyticsService, FileUploadService
 ) ->
@@ -13,6 +13,8 @@ ShortFormApplicationService = (
   emptyAddress = { address1: null, address2: "", city: null, state: null, zip: null }
   Service.applicationDefaults =
     id: null
+    # defaults to `null` so that we differentiate "setting" vs. "switching" language
+    applicationLanguage: null
     lotteryNumber: null
     status: 'draft'
     applicationSubmittedDate: null
@@ -69,6 +71,13 @@ ShortFormApplicationService = (
     Service.session_uid = "#{uuid.v4()}-#{uuid.v4()}"
   Service.refreshSessionUid()
 
+  Service.latinRegex = new RegExp("^[A-z0-9\u00C0-\u017E\\s'\.,-\/\+#%$:=\-_`~()]+$")
+  Service.languageMap =
+    en: 'English'
+    es: 'Spanish'
+    tl: 'Filipino'
+    zh: 'Chinese'
+
   ## initialize other related services
   Service.initServices = ->
     # initialize FileUploadService to have access to preferences / session_uid
@@ -78,7 +87,7 @@ ShortFormApplicationService = (
     ShortFormDataService.defaultCompletedSections = Service.applicationDefaults.completedSections
   ## -------
 
-  Service.resetUserData = (data = {}) ->
+  Service.resetApplicationData = (data = {}) ->
     application = _.merge({}, Service.applicationDefaults, data)
     angular.copy(application, Service.application)
     Service.applicant = Service.application.applicant
@@ -88,17 +97,24 @@ ShortFormApplicationService = (
     Service.householdMembers = Service.application.householdMembers
     Service.initServices()
 
-  Service.resetUserData()
+  Service.resetApplicationData()
   # --- end initialization
 
-  Service.inputInvalid = (fieldName, form = Service.form.applicationForm, identifier) ->
+  Service.inputInvalid = (fieldName, form = Service.form.applicationForm) ->
     return false unless form
-    fieldName = if identifier then "#{identifier}_#{fieldName}" else fieldName
     field = form[fieldName]
     if form && field
+      # special case: set "invalid email" error instead of "provide answers in english" when failing ng-pattern
+      if fieldName == 'email' && field.$error.pattern
+        field.$error.email = true
       field.$invalid && (field.$touched || form.$submitted)
     else
       false
+
+  Service.switchingLanguage = ->
+    toLang = $state.params.lang
+    fromLang = Service.getLanguageCode(Service.application)
+    !!fromLang && (toLang != fromLang)
 
   Service.completeSection = (section) ->
     Service.application.completedSections[section] = true
@@ -220,7 +236,7 @@ ShortFormApplicationService = (
 
   # this function sets up Service.groupedHouseholdAddresses which is used by Rent Burden preference
   # - gets called onEnter of household-monthly-rent
-  # - it's used to setup the monthly-rent page as well as rent-burden-preference pages
+  # - it's used to setup the monthly-rent page as well as rent-burdened-preference pages
   # - it will reset the addresses and Rent Burden if any members/addresses have changed
   Service.groupHouseholdAddresses = ->
     groupedAddresses = []
@@ -484,7 +500,8 @@ ShortFormApplicationService = (
     # true if no preferences are selected at all
     prefList = ShortFormDataService.preferences
     customPrefs = _.map(Service.listing.customPreferences, 'listingPreferenceID')
-    prefList = prefList.concat(customPrefs)
+    customProofPrefs = _.map(Service.listing.customProofPreferences, 'listingPreferenceID')
+    prefList = prefList.concat(customPrefs, customProofPrefs)
     return !_.some(_.pick(Service.preferences, prefList))
 
   Service.claimedCustomPreference = (preference) ->
@@ -555,7 +572,7 @@ ShortFormApplicationService = (
       # special case for household-member-form
       return if stateName.match(/household-member-form/)
       # special case for rentBurden subpages
-      return if stateName.match(/rent-burden-preference-edit/)
+      return if stateName.match(/rent-burdened-preference-edit/)
       isValid = Service.form.applicationForm.$valid
       # special case for contact form
       if stateName.match(/contact/)
@@ -602,6 +619,17 @@ ShortFormApplicationService = (
       toState.name != 'dahlia.short-form-application.review-submitted' &&
       toState.name != 'dahlia.short-form-application.create-account' &&
       Service.isShortFormPage(toState)
+
+  Service.leaveAndResetShortForm = (toState, toParams) ->
+    # disable the onbeforeunload so that you are no longer bothered if you
+    # try to reload the listings page, for example
+    $window.removeEventListener 'beforeunload', Service.onExit
+    unless toState.name == 'dahlia.short-form-review'
+      Service.resetApplicationData()
+    if toParams.timeout
+      AnalyticsService.trackTimeout('Application')
+    else
+      AnalyticsService.trackFormAbandon('Application')
 
   Service.invalidateNameForm = ->
     Service.application.validatedForms['You']['name'] = false
@@ -668,9 +696,13 @@ ShortFormApplicationService = (
     # this gets stored in the metadata of the application to verify who's trying to "claim" it after submission
     Service.application.session_uid = Service.session_uid
     params =
+      # $translate.use() with no arguments is a getter for the current lang setting
+      locale: $translate.use()
       application: ShortFormDataService.formatApplication(Service.listing.Id, Service.application)
       uploaded_file:
         session_uid: Service.session_uid
+
+    autosave = if options.autosave then '?autosave=true' else ''
 
     if options.attachToAccount
       # NOTE: This temp_session_id is vital for the operation of Create Account on "save and finish"
@@ -682,10 +714,10 @@ ShortFormApplicationService = (
       if options.attachToAccount
         appSubmission = $http.put("/api/v1/short-form/claim-application/#{id}", params)
       else
-        appSubmission = $http.put("/api/v1/short-form/application/#{id}", params)
+        appSubmission = $http.put("/api/v1/short-form/application/#{id}#{autosave}", params)
     else
       # create
-      appSubmission = $http.post('/api/v1/short-form/application', params)
+      appSubmission = $http.post("/api/v1/short-form/application#{autosave}", params)
 
     appSubmission.success((data, status, headers, config) ->
       if data.lotteryNumber
@@ -770,14 +802,15 @@ ShortFormApplicationService = (
         # on submitted app the listing is loaded along with it
         ListingService.loadListing(data.application.listing)
       formattedApp = ShortFormDataService.reformatApplication(data.application, files)
-      Service.checkForProofPrefs(formattedApp)
+      Service.checkForProofPrefs(formattedApp) unless formattedApp.status.match(/submitted/i)
 
     # pull answeredCommunityScreening from the current session since that Q is answered first
     formattedApp.answeredCommunityScreening ?= Service.application.answeredCommunityScreening
-
-    Service.resetUserData(formattedApp)
+    # this will setup Service.application with the loaded data
+    Service.resetApplicationData(formattedApp)
     # one last step, reconcile any uploaded files with your saved member + preference data
-    Service.refreshPreferences('all')
+    if !_.isEmpty(Service.application) && Service.application.status.match(/draft/i)
+      Service.refreshPreferences('all')
 
   Service.checkForProofPrefs = (formattedApp) ->
     proofPrefs = [
@@ -787,6 +820,7 @@ ShortFormApplicationService = (
       'antiDisplacement',
       'assistedHousing',
     ]
+    formattedApp.completedSections ?= {}
     # make sure all files are present for proof-requiring preferences, otherwise don't let them jump ahead
     _.each proofPrefs, (prefType) ->
       hasPref = formattedApp.preferences[prefType]
@@ -892,6 +926,13 @@ ShortFormApplicationService = (
     # from the user's perspective, "Removed" applications should look the same as "Submitted" ones
     _.includes(['Submitted', 'Removed'], application.status)
 
+  Service.setApplicationLanguage = (lang) ->
+    Service.application.applicationLanguage = Service.languageMap[lang]
+
+  Service.getLanguageCode = (application) ->
+    # will take "English" and return "en"
+    _.invert(Service.languageMap)[application.applicationLanguage]
+
   Service.applicationCompletionPercentage = (application) ->
     pct = 5
     pct += 30 if application.completedSections.You
@@ -924,7 +965,7 @@ ShortFormApplicationService = (
 ############################################################################################
 
 ShortFormApplicationService.$inject = [
-  '$translate', '$http', '$state', 'uuid',
+  '$translate', '$http', '$state', '$window', 'uuid',
   'ListingService', 'ShortFormDataService',
   'AddressValidationService', 'GeocodingService',
   'AnalyticsService', 'FileUploadService'
