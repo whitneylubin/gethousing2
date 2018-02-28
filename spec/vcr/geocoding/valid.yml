@@ -2,7 +2,7 @@
 http_interactions:
 - request:
     method: get
-    uri: https://sfgis-svc.sfgov.org/arcgis/rest/services/dt/NRHP_Composite/GeocodeServer/findAddressCandidates?City=San%20Francisco&State=CA&Street=1222%20Harrison%20St&f=pjson&outfields=loc_name
+    uri: https://sfgis-portal.sfgov.org/svc/rest/services/dahlia/NHRP_Composite/GeocodeServer/findAddressCandidates?City=San%20Francisco&State=CA&Street=1222%20Harrison%20St&f=pjson&outfields=loc_name
     body:
       encoding: US-ASCII
       string: ''
@@ -74,11 +74,11 @@ http_interactions:
           }
          ]
         }
-    http_version: 
+    http_version:
   recorded_at: Wed, 13 Dec 2017 19:22:55 GMT
 - request:
     method: get
-    uri: https://sfgis-svc.sfgov.org/arcgis/rest/services/dt/NRHP_pref/MapServer/0/query?f=pjson&geometry=-13626517.284101073,4547486.548344336&geometryType=esriGeometryPoint&returnCountOnly=true&spatialRel=esriSpatialRelIntersects&where=projid=%272012-021%27
+    uri: https://sfgis-portal.sfgov.org/svc/rest/services/dahlia/NRHP_pref/MapServer/0/query?f=pjson&geometry=-13626517.284101073,4547486.548344336&geometryType=esriGeometryPoint&returnCountOnly=true&spatialRel=esriSpatialRelIntersects&where=projid=%272012-021%27
     body:
       encoding: US-ASCII
       string: ''
@@ -112,6 +112,6 @@ http_interactions:
         {
          "count": 1
         }
-    http_version: 
+    http_version:
   recorded_at: Wed, 13 Dec 2017 19:22:55 GMT
 recorded_with: VCR 3.0.3
