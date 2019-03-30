@@ -73,8 +73,8 @@ Then 'I should see an error on the prerequisites form', ->
   Utils.Expect.error(@, 'This field is required')
 
 Then 'I fill in prerequisites form', ->
-  element(By.cssContainingText('option', 'Homestreet Bank')).click()
-  element(By.cssContainingText('option', 'Jason Lockhart')).click()
+  element(By.cssContainingText('option', 'First Republic Bank')).click()
+  element(By.cssContainingText('option', 'Hilary Byrde')).click()
   Utils.Page.uploadFile('Loan pre-approval', '/app/assets/images/logo-city.png')
   Utils.Page.uploadFile('Homebuyer education certificate', '/app/assets/images/logo-city.png')
   Utils.Page.checkCheckbox 'application_is_first_time_homebuyer', ->
