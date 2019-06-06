@@ -7,16 +7,25 @@ angular.module('dahlia.components')
     icon: '@'
   controller: ['$translate', ($translate) ->
     ctrl = @
+    @toggleStates = {}
+    @text = {}
 
     this.$onInit = ->
       @setupText()
 
-    @toggleStates = {}
-    @displayToggledSection = @toggleStates[@sectionName] ? false
-    @togglerId = "#{@sectionName}-toggler"
-    @text = {}
+      @displayToggledSection = @toggleStates[@sectionName] ? false
+      @togglerId = "#{@sectionName}-toggler"
 
-    @hasListings = !!@listingResults.length
+      @hasListings = !!@listingResults.length
+
+      @toggleListings = (e) ->
+        # When you use keyboard nav to click on the button inside the header
+        # for some reason it triggers both a MouseEvent and KeyboardEvent.
+        # So, we ignore the KeyboardEvent.
+        return if e.constructor.name == 'KeyboardEvent' and angular.element(e.target).hasClass('button')
+        e.currentTarget.blur() if e
+        @displayToggledSection = !@displayToggledSection
+        @toggleStates[@sectionName] = @displayToggledSection
 
     @setupText = ->
       switch @sectionName
@@ -43,15 +52,6 @@ angular.module('dahlia.components')
             hideResults: $translate.instant('LISTINGS.UPCOMING_LOTTERIES.HIDE')
             noResults: $translate.instant('LISTINGS.UPCOMING_LOTTERIES.NO_RESULTS')
           }
-
-    @toggleListings = (e) ->
-      # When you use keyboard nav to click on the button inside the header
-      # for some reason it triggers both a MouseEvent and KeyboardEvent.
-      # So, we ignore the KeyboardEvent.
-      return if e.constructor.name == 'KeyboardEvent' and angular.element(e.target).hasClass('button')
-      e.currentTarget.blur() if e
-      @displayToggledSection = !@displayToggledSection
-      @toggleStates[@sectionName] = @displayToggledSection
 
     return ctrl
   ]

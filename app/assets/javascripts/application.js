@@ -11,8 +11,8 @@
 // about supported directives.
 //
 //= require lodash/lodash
-//= require angular
-//= require angular-foundation/mm-foundation.min.js
+//= require angular/angular.min.js
+//= require angular-foundation/mm-foundation-tpls.min.js
 //= require angular-ui-router/release/angular-ui-router.min.js
 //= require angular-ui-router-title
 //= require angular-rails-templates

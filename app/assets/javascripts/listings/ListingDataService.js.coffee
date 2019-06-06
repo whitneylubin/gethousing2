@@ -69,12 +69,12 @@ ListingDataService = (
     httpConfig = { etagCache: true }
     httpConfig.params = { force: true } if forceRecache
     $http.get("/api/v1/listings/#{_id}.json", httpConfig)
-    .then(
-      Service.getListingResponse(deferred, retranslate)
-    ).cached(
-      Service.getListingResponse(deferred, retranslate)
-    ).catch( (data, status, headers, config) ->
-      deferred.reject(data)
+    .then((response, itemCache) ->
+      Service.getListingResponse(response.data, itemCache, deferred, retranslate)
+    ).ifCached((response, itemCache) ->
+      Service.getListingResponse(response.data, itemCache, deferred, retranslate)
+    ).catch((err) ->
+      deferred.reject(err)
     )
     return deferred.promise
 
@@ -85,9 +85,8 @@ ListingDataService = (
     angular.copy([], Service.listingPaperAppURLs)
     ListingLotteryService.resetData()
 
-  Service.getListingResponse = (deferred, retranslate = false) ->
-    (data, status, headers, config, itemCache) ->
-      itemCache.set(data) unless status == 'cached'
+  Service.getListingResponse = (data, itemCache, deferred, retranslate = false) ->
+      itemCache.set(data)
       deferred.resolve()
       if !data || !data.listing
         return
@@ -158,18 +157,17 @@ ListingDataService = (
     $http.get("/api/v1/listings/eligibility.json?#{SharedService.toQueryString(params)}", {
       etagCache: true,
       timeout: Service.deferred.promise
-    }).then(
-      Service.getListingsWithEligibilityResponse(Service.deferred)
-    ).cached(
-      Service.getListingsWithEligibilityResponse(Service.deferred)
-    ).catch( (data, status, headers, config) ->
-      Service.deferred.reject(data)
+    }).then((response, itemCache) ->
+      Service.getListingsWithEligibilityResponse(response.data, itemCache, Service.deferred)
+    ).ifCached((response, itemCache) ->
+      Service.getListingsWithEligibilityResponse(response.data, itemCache, Service.deferred)
+    ).catch((err) ->
+      Service.deferred.reject(err)
     )
     return Service.deferred.promise
 
-  Service.getListingsWithEligibilityResponse = (deferred) ->
-    (data, status, headers, config, itemCache) ->
-      itemCache.set(data) unless status == 'cached'
+  Service.getListingsWithEligibilityResponse = (data, itemCache, deferred) ->
+      itemCache.set(data)
       listings = (if data and data.listings then data.listings else [])
       listings = Service.cleanListings(listings)
       Service.groupListings(listings)
@@ -227,13 +225,14 @@ ListingDataService = (
     params =
       params: {ids: ids.join(',')}
       timeout: Service.deferred.promise
-    $http.get("/api/v1/listings.json", params).then((data, status, headers, config) ->
+    $http.get("/api/v1/listings.json", params).then((response) ->
+      data = response.data
       listings = if data and data.listings then data.listings else []
       Service.deferred.resolve()
       angular.copy(listings, Service.listings)
       Service.checkFavorites() if checkFavorites
-    ).catch( (data, status, headers, config) ->
-      Service.deferred.reject(data)
+    ).catch((err) ->
+      Service.deferred.reject(err)
       return
     )
     return Service.deferred.promise
@@ -266,15 +265,16 @@ ListingDataService = (
     # shouldn't happen, but safe to have a guard clause
     return $q.when() unless listing.chartTypes
     allChartTypes = _.sortBy(listing.chartTypes, 'percent')
-    data =
+    params =
       'year[]': _.map(allChartTypes, 'year')
       'chartType[]': _.map(allChartTypes, 'chartType')
       'percent[]': _.map(allChartTypes, 'percent')
-    $http.get('/api/v1/listings/ami.json', { params: data }).then((data, status, headers, config) ->
+    $http.get('/api/v1/listings/ami.json', { params: params }).then((response) ->
+      data = response.data
       if data && data.ami
         angular.copy(Service._consolidatedAMICharts(data.ami), Service.AMICharts)
       Service.loading.ami = false
-    ).catch( (data, status, headers, config) ->
+    ).catch((err) ->
       Service.loading.ami = false
       Service.error.ami = true
       return

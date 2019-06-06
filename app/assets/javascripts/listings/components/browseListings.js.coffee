@@ -9,6 +9,9 @@ angular.module('dahlia.components')
   ($state, $translate, IncomeCalculatorService, ListingDataService, ListingEligibilityService) ->
     ctrl = @
 
+    this.$onInit = ->
+      @parent = this.parent
+
     @eligibilityFilters = ListingEligibilityService.eligibility_filters
     @openMatchListings = ListingDataService.openMatchListings
 
