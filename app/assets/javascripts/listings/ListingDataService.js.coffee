@@ -69,11 +69,11 @@ ListingDataService = (
     httpConfig = { etagCache: true }
     httpConfig.params = { force: true } if forceRecache
     $http.get("/api/v1/listings/#{_id}.json", httpConfig)
-    .success(
+    .then(
       Service.getListingResponse(deferred, retranslate)
     ).cached(
       Service.getListingResponse(deferred, retranslate)
-    ).error( (data, status, headers, config) ->
+    ).catch( (data, status, headers, config) ->
       deferred.reject(data)
     )
     return deferred.promise
@@ -122,22 +122,18 @@ ListingDataService = (
     if opts.checkEligibility && ListingEligibilityService.hasEligibilityFilters()
       return Service.getListingsWithEligibility(opts.params)
 
-    $http.get("/api/v1/listings.json", {
-      etagCache: true,
-      params: opts.params,
-      timeout: Service.deferred.promise
-    }).success(
-      Service.getListingsResponse(Service.deferred, opts.retranslate)
-    ).cached(
-      Service.getListingsResponse(Service.deferred, opts.retranslate)
-    ).error((data, status, headers, config) ->
-      Service.deferred.reject(data)
+    $http.get("/api/v1/listings.json", { etagCache: true }).then((response, itemCache) ->
+      Service.getListingsResponse(response.data, itemCache, Service.deferred, opts.retranslate)
     )
+    .ifCached((response, itemCache) ->
+      Service.getListingsResponse(response.data, itemCache, Service.deferred, opts.retranslate)
+    )
+    .catch((err) -> Service.deferred.reject(err))
+
     return Service.deferred.promise
 
-  Service.getListingsResponse = (deferred, retranslate = false) ->
-    (data, status, headers, config, itemCache) ->
-      itemCache.set(data) unless status == 'cached'
+  Service.getListingsResponse = (data, itemCache, deferred, retranslate = false) ->
+      itemCache.set(data)
       listings = if data and data.listings then data.listings else []
       listings = Service.cleanListings(listings)
       Service.groupListings(listings)
@@ -162,11 +158,11 @@ ListingDataService = (
     $http.get("/api/v1/listings/eligibility.json?#{SharedService.toQueryString(params)}", {
       etagCache: true,
       timeout: Service.deferred.promise
-    }).success(
+    }).then(
       Service.getListingsWithEligibilityResponse(Service.deferred)
     ).cached(
       Service.getListingsWithEligibilityResponse(Service.deferred)
-    ).error( (data, status, headers, config) ->
+    ).catch( (data, status, headers, config) ->
       Service.deferred.reject(data)
     )
     return Service.deferred.promise
@@ -231,12 +227,12 @@ ListingDataService = (
     params =
       params: {ids: ids.join(',')}
       timeout: Service.deferred.promise
-    $http.get("/api/v1/listings.json", params).success((data, status, headers, config) ->
+    $http.get("/api/v1/listings.json", params).then((data, status, headers, config) ->
       listings = if data and data.listings then data.listings else []
       Service.deferred.resolve()
       angular.copy(listings, Service.listings)
       Service.checkFavorites() if checkFavorites
-    ).error( (data, status, headers, config) ->
+    ).catch( (data, status, headers, config) ->
       Service.deferred.reject(data)
       return
     )
@@ -274,11 +270,11 @@ ListingDataService = (
       'year[]': _.map(allChartTypes, 'year')
       'chartType[]': _.map(allChartTypes, 'chartType')
       'percent[]': _.map(allChartTypes, 'percent')
-    $http.get('/api/v1/listings/ami.json', { params: data }).success((data, status, headers, config) ->
+    $http.get('/api/v1/listings/ami.json', { params: data }).then((data, status, headers, config) ->
       if data && data.ami
         angular.copy(Service._consolidatedAMICharts(data.ami), Service.AMICharts)
       Service.loading.ami = false
-    ).error( (data, status, headers, config) ->
+    ).catch( (data, status, headers, config) ->
       Service.loading.ami = false
       Service.error.ami = true
       return
