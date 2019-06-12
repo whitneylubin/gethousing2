@@ -129,9 +129,9 @@ AccountService = (
       Service.accountError.messages.password = msg
 
   Service.checkForAccount = (email) ->
-    $http.get("/api/v1/account/check-account?email=#{encodeURIComponent(email)}").success((data) ->
-      Service.accountExists = data.account_exists
-    ).catch( (data, status, headers, config) ->
+    $http.get("/api/v1/account/check-account?email=#{encodeURIComponent(email)}").then((response) ->
+      Service.accountExists = responsedata.account_exists
+    ).catch((data, status, headers, config) ->
       Service.accountExists = false
     )
 
@@ -167,8 +167,8 @@ AccountService = (
     )
 
   Service.getMyApplications = ->
-    $http.get('/api/v1/account/my-applications').success((data) ->
-      if data.applications
+    $http.get('/api/v1/account/my-applications').then((response) ->
+      if response.data.applications
         myApplications = _.map(data.applications, ShortFormDataService.reformatApplication)
         angular.copy(myApplications, Service.myApplications)
     )
@@ -179,9 +179,9 @@ AccountService = (
       params =
         user:
           email: Service.userAuth.user.email
-      $http.put('/api/v1/auth', params).success((data) ->
+      $http.put('/api/v1/auth', params).then((response) ->
         Service.accountSuccess.messages.email = $translate.instant("ACCOUNT_SETTINGS.VERIFY_EMAIL")
-      ).error((response) ->
+      ).catch((response) ->
         msg = response.errors.full_messages[0]
         if msg == 'Email has already been taken'
           Service.accountError.messages.email = $translate.instant("ERROR.EMAIL_ALREADY_IN_USE")
@@ -191,11 +191,11 @@ AccountService = (
     else
       params =
         contact: Service.userDataForSalesforce()
-      $http.put('/api/v1/account/update', params).success((data) ->
+      $http.put('/api/v1/account/update', params).then((response) ->
         Service.accountSuccess.messages.nameDOB = $translate.instant("ACCOUNT_SETTINGS.ACCOUNT_CHANGES_SAVED")
-        _.merge(Service.loggedInUser, data.contact)
+        _.merge(Service.loggedInUser, response.data.contact)
         Service._reformatDOB()
-      ).error((response) ->
+      ).catch((response) ->
         # currently, shouldn't ever really reach this case
         bsLoadingOverlayService.stop()
         msg = response.errors.full_messages[0]

@@ -430,9 +430,9 @@ ShortFormApplicationService = (
         householdsize: Service.householdSize()
         incomelevel: Service.calculateHouseholdIncome()
         childrenUnder6: Service._childrenUnder6()
-    $http.post("/api/v1/short-form/validate-household", params).success((data, status, headers, config) ->
+    $http.post("/api/v1/short-form/validate-household", params).then((response) ->
       # assigning value to object for now to make function unit testable
-      angular.copy(data, Service._householdEligibility)
+      angular.copy(response.data, Service._householdEligibility)
       return Service.householdEligibility
     )
 
@@ -843,22 +843,22 @@ ShortFormApplicationService = (
     )
 
   Service.deleteApplication = (id) ->
-    $http.delete("/api/v1/short-form/application/#{id}").success((data, status) ->
+    $http.delete("/api/v1/short-form/application/#{id}").then((response) ->
       true
     )
 
   Service.getApplication = (id) ->
-    $http.get("/api/v1/short-form/application/#{id}").success((data, status) ->
-      Service.loadApplication(data)
+    $http.get("/api/v1/short-form/application/#{id}").then((response) ->
+      Service.loadApplication(response.data)
     )
 
   Service.getMyApplicationForListing = (listingId = Service.listing.Id, opts = {}) ->
     autofill = if opts.autofill then '?autofill=true' else ''
-    $http.get("/api/v1/short-form/listing-application/#{listingId}#{autofill}").success((data, status) ->
+    $http.get("/api/v1/short-form/listing-application/#{listingId}#{autofill}").then((response) ->
       if opts.forComparison
-        Service.loadAccountApplication(data)
+        Service.loadAccountApplication(response.data)
       else
-        Service.loadApplication(data)
+        Service.loadApplication(response.data)
     )
 
   Service.keepCurrentDraftApplication = (loggedInUser) ->
@@ -1091,8 +1091,8 @@ ShortFormApplicationService = (
     ListingDataService.getProjectIdForBoundaryMatching(Service.listing)
 
   Service.getLendingInstitutions = ->
-    $http.get("/api/v1/short-form/lending_institutions").success((data, status) ->
-      angular.copy(data, Service.lendingInstitutions)
+    $http.get("/api/v1/short-form/lending_institutions").then((response) ->
+      angular.copy(response.data, Service.lendingInstitutions)
     )
 
   return Service

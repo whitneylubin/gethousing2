@@ -13,11 +13,11 @@ ListingLotteryService = ($http, ListingIdentityService, ModalService) ->
     return unless listing
     angular.copy({}, Service.lotteryBucketInfo)
     Service.loading.lotteryResults = true
-    $http.get("/api/v1/listings/#{listing.Id}/lottery_buckets").success((data, status, headers, config) ->
+    $http.get("/api/v1/listings/#{listing.Id}/lottery_buckets").then((response) ->
       Service.loading.lotteryResults = false
       Service.lotteryBucketInfo[listing.Id] = {}
-      angular.copy(data, Service.lotteryBucketInfo[listing.Id])
-    ).error( (data, status, headers, config) ->
+      angular.copy(response.data, Service.lotteryBucketInfo[listing.Id])
+    ).catch((error) ->
       Service.loading.lotteryResults = false
       return
     )
@@ -70,11 +70,11 @@ ListingLotteryService = ($http, ListingIdentityService, ModalService) ->
         lottery_number: lotteryNumber
     Service.loading.lotteryRank = true
     Service.error.lotteryRank = false
-    $http.get("/api/v1/listings/#{listing.Id}/lottery_ranking", params).success((data, status, headers, config) ->
-      angular.copy(data, Service.lotteryRankingInfo[listing.Id])
+    $http.get("/api/v1/listings/#{listing.Id}/lottery_ranking", params).then((response) ->
+      angular.copy(response.data, Service.lotteryRankingInfo[listing.Id])
       Service.loading.lotteryRank = false
       Service.lotteryRankingInfo[listing.Id].submitted = true
-    ).error( (data, status, headers, config) ->
+    ).catch((error) ->
       Service.loading.lotteryRank = false
       Service.error.lotteryRank = true
     )

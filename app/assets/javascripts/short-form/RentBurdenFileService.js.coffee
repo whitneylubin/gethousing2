@@ -63,11 +63,9 @@ RentBurdenFileService = ($http, $q, uuid, ListingDataService, ListingPreferenceS
       headers: {
         'Content-Type': 'application/json'
       },
-    }).success((data, status, headers, config) ->
+    }).then((response) ->
       # clear out fileObj
       Service.clearRentBurdenFiles(address)
-    ).error( (data, status, headers, config) ->
-      return
     )
 
 
